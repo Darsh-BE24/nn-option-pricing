@@ -1,7 +1,5 @@
 # Neural Network Option Pricing Engine
 
-*(Work in progress: motivation, method and results tables are filled in as stages complete.)*
-
 ## Setup
 
 ```bash
@@ -184,3 +182,20 @@ python generate_data.py --model heston_cal
 python nn_pricer.py --data data/heston_cal --time-value --vega-weight --layers 5 --hidden 256 --batch 2048 --epochs 150
 python calibrate_surface.py --date 2026-11-04 --csv (Get-ChildItem data\surface\*.csv).FullName --model models\heston_cal_mlp.pt --polish --time-fourier --tag surface_cal
 ```
+
+## Results summary (final, measured on the author's laptop CPU; all fit errors re-priced with the EXACT Fourier pricer)
+
+| Item | Number |
+|---|---|
+| Calibration network (heston_cal box), 100k held-out options | price MAE 0.35 bp of strike, flat across Feller ratios (0.33-0.42 bp) |
+| Pricing speed, batch 5000 vs vectorised Fourier (idle machine) | 2.18 us vs 127 us per option = 58x |
+| NIFTY, 4 expiries (Dec-Mar, 160 quotes) | network-only 0.314 vol-pt RMSE vs exact 0.312 |
+| NIFTY, 6 expiries (Nov-Mar, 266 quotes) | network-only 0.353 vs exact 0.330-0.366 depending on the parameter box |
+| Calibration time, 6 expiries, same 8 starts | network 1.3 s vs exact 11.4 s (about 9x; part of this is fewer iterations) |
+| Synthetic recovery, network, 0.1 vol-pt noise | v0 0.020 (0.020), theta 0.037 (0.040), xi 0.51 (0.50), rho -0.71 (-0.70), kappa 2.5 (2.0); fit 0.10 vol pts |
+
+Limits (state them): last-session quotes after market close, assumed 6% rate, mid-quote vols, one snapshot; kappa and xi sit at/near
+their box edges so parameter VALUES are not claimed; only 9-23% of strikes fall inside the bid-ask band (Heston is rigid, the exact
+pricer does the same); the calibration network's Greeks are NOT usable (gamma 157% off) - the time-value baseline max(m - e^{-rT}, 0)
+has a kink at S = K e^{-rT} (about 98.5 for K = 100, r = 3%, T = 0.5, exactly where the delta/gamma spikes appear), so use the general
+Stage-4 network for Greeks and the calibration network for calibration only.
