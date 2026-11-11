@@ -1,0 +1,7 @@
+﻿data/*
+!data/nifty_chain.csv
+!data/surface/
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
